@@ -22,13 +22,14 @@ services:
     restart: always
     environment:
       - ACME_AGREE=true
-#      if u want to use cloudflare ddns service
+#      if u want to use cloudflare (for DNS challenge authentication)
 #      - CLOUDFLARE_EMAIL=xxxxxx@out.look.com
 #      - CLOUDFLARE_API_KEY=xxxxxxx
       - V2RAY_DOMAIN=xxxx.com
       - V2RAY_PATH=/v2ray
       - V2RAY_EMAIL=xxxx@outlook.com
       - V2RAY_PORT=10550
+      - V2RAY_OUTSIDE_PORT=443
     network_mode: "host"
     volumes:
       - ./.caddy:/root/.caddy

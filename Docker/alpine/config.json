@@ -3,7 +3,8 @@
     "services": [
       "HandlerService",
       "LoggerService",
-      "StatsService"
+      "StatsService",
+      "RuleService"
     ],
     "tag": "api"
   },
@@ -18,6 +19,8 @@
   }
   ],
   "log": {
+    "access": "/var/log/v2ray/access.log",
+    "error": "/var/log/v2ray/error.log",
     "loglevel": "info"
   },
   "outbounds": [{
@@ -33,7 +36,6 @@
   "policy": {
     "levels": {
       "0": {
-        "bufferSize": 10240,
         "connIdle": 300,
         "downlinkOnly": 5,
         "handshake": 4,
@@ -96,8 +98,9 @@
   },
   "stats": {},
   "sspanel": {
-    "nodeId": 123456,
+    "nodeid": 20,
     "checkRate": 60,
+    "SpeedTestCheckRate": 6,
     "panelUrl": "https://google.com",
     "panelKey": "55fUxDGFzH3n"
   }

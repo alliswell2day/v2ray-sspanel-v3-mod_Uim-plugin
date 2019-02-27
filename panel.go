@@ -6,29 +6,40 @@ import (
 	"github.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/client"
 	"github.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/config"
 	"github.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/model"
+	"github.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/speedtest"
 	"github.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/webapi"
 	"github.com/robfig/cron"
 	"google.golang.org/grpc"
 	"reflect"
+	"runtime"
 )
 
 type Panel struct {
-	db      *webapi.Webapi
-	manager *Manager.Manager
+	db              *webapi.Webapi
+	manager         *Manager.Manager
+	speedtestClient speedtest.Client
 }
 
 func NewPanel(gRPCConn *grpc.ClientConn, db *webapi.Webapi, cfg *config.Config) (*Panel, error) {
-
+	opts := speedtest.NewOpts()
+	speedtestClient := speedtest.NewClient(opts)
 	var newpanel = Panel{
-
-		db: db,
+		speedtestClient: speedtestClient,
+		db:              db,
 		manager: &Manager.Manager{
-			HandlerServiceClient: client.NewHandlerServiceClient(gRPCConn, "MAIN_INBOUND"),
-			StatsServiceClient:   client.NewStatsServiceClient(gRPCConn),
-			NodeID:               cfg.NodeID,
-			CheckRate:            cfg.CheckRate,
-			CurrentNodeInfo:      &model.NodeInfo{},
-			NextNodeInfo:         &model.NodeInfo{},
+			HandlerServiceClient:  client.NewHandlerServiceClient(gRPCConn, "MAIN_INBOUND"),
+			StatsServiceClient:    client.NewStatsServiceClient(gRPCConn),
+			UserRuleServiceClient: client.NewUserRuleServerClient(gRPCConn),
+			NodeID:                cfg.NodeID,
+			CheckRate:             cfg.CheckRate,
+			SpeedTestCheckRate:    cfg.SpeedTestCheckRate,
+			CurrentNodeInfo:       &model.NodeInfo{},
+			NextNodeInfo:          &model.NodeInfo{},
+			Users:                 map[string]model.UserModel{},
+			UserToBeMoved:         map[string]model.UserModel{},
+			UserToBeAdd:           map[string]model.UserModel{},
+			Id2PrefixedIdmap:      map[uint]string{},
+			Id2DisServer:          map[uint]string{},
 		},
 	}
 	return &newpanel, nil
@@ -39,13 +50,36 @@ func (p *Panel) Start() {
 		if err := p.do(); err != nil {
 			newError("panel#do").Base(err).AtError().WriteToLog()
 		}
+		// Explicitly triggering GC to remove garbage
+		runtime.GC()
 	}
 	doFunc()
 
+	speedTestFunc := func() {
+		result, err := speedtest.GetSpeedtest(p.speedtestClient)
+		if err != nil {
+			newError("panel#speedtest").Base(err).AtError().WriteToLog()
+		}
+		newError(result).AtInfo().WriteToLog()
+		if p.db.UploadSpeedTest(p.manager.NodeID, result) {
+			newError("succesfully upload speedtest result").AtInfo().WriteToLog()
+		} else {
+			newError("failed to upload speedtest result").AtInfo().WriteToLog()
+		}
+		// Explicitly triggering GC to remove garbage
+		runtime.GC()
+	}
 	c := cron.New()
 	err := c.AddFunc(fmt.Sprintf("@every %ds", p.manager.CheckRate), doFunc)
 	if err != nil {
 		fatal(err)
+	}
+	if p.manager.SpeedTestCheckRate > 0 {
+		newErrorf("@every %dh", p.manager.SpeedTestCheckRate).AtInfo().WriteToLog()
+		err = c.AddFunc(fmt.Sprintf("@every %dh", p.manager.SpeedTestCheckRate), speedTestFunc)
+		if err != nil {
+			newError("Can't add speed test into cron").AtWarning().WriteToLog()
+		}
 	}
 	c.Start()
 	c.Run()
@@ -61,8 +95,15 @@ func (p *Panel) initial() {
 	p.manager.RemoveInbound()
 	p.manager.CopyUsers()
 	p.manager.UpdataUsers()
+	p.manager.RemoveAllUserOutBound()
 	p.manager.CurrentNodeInfo = &model.NodeInfo{}
 	p.manager.NextNodeInfo = &model.NodeInfo{}
+	p.manager.UserToBeAdd = map[string]model.UserModel{}
+	p.manager.UserToBeMoved = map[string]model.UserModel{}
+	p.manager.Users = map[string]model.UserModel{}
+	p.manager.Id2PrefixedIdmap = map[uint]string{}
+	p.manager.Id2DisServer = map[uint]string{}
+
 }
 
 func (p *Panel) updateManager() {
@@ -127,8 +168,132 @@ func (p *Panel) updateManager() {
 	} else {
 		newError("check ports finished. No need to update ").AtInfo().WriteToLog()
 	}
+	if newNodeinfo.Data.Sort == 12 {
+		newError("Start to check relay rules ").AtInfo().WriteToLog()
+		p.updateOutbounds()
+	}
+}
+func (p *Panel) updateOutbounds() {
+	data, err := p.db.GetDisNodeInfo(p.manager.NodeID)
+	if err != nil {
+		newError(err).AtWarning().WriteToLog()
+		p.initial()
+		return
+	}
+	if data.Ret != 1 {
+		newError(data.Data).AtWarning().WriteToLog()
+		p.initial()
+		return
+	}
+	if len(data.Data) > 0 {
+		newErrorf("Recieve %d User Rules", len(data.Data)).AtInfo().WriteToLog()
+		globalSettingindex := -1
+		for index, value := range data.Data {
+			if value.UserId == 0 {
+				globalSettingindex = index
+				break
+			}
+		}
+		if globalSettingindex != -1 {
+			nextserver := data.Data[globalSettingindex]
+			newErrorf("Got A Global Rule %s ", nextserver.Server_raw).AtInfo().WriteToLog()
+			remove_count := 0
+			add_count := 0
+			for _, user := range p.manager.Users {
+				currentserver, find := p.manager.Id2DisServer[user.UserID]
+				nextserver.UserId = user.UserID
+				if find {
+					if currentserver != nextserver.Server_raw {
+						p.manager.RemoveOutBound(currentserver+fmt.Sprintf("%d", user.UserID), user.UserID)
+						err := p.manager.AddOuntBound(nextserver)
+						if err != nil {
+							newError("ADDOUTBOUND ").Base(err).AtInfo().WriteToLog()
+						} else {
+
+							remove_count += 1
+							add_count += 1
+						}
+					}
+				} else {
+					err := p.manager.AddOuntBound(nextserver)
+					if err != nil {
+						newError("ADDOUTBOUND ").Base(err).AtInfo().WriteToLog()
+					} else {
+						add_count += 1
+					}
+				}
+			}
+			p.manager.Id2DisServer = map[uint]string{}
+			for _, user := range p.manager.Users {
+				p.manager.Id2DisServer[user.UserID] = nextserver.Server_raw
+			}
+			newErrorf("Add %d and REMOVE %d  Rules, Current Rules %d", add_count, remove_count, len(p.manager.Id2DisServer)).AtInfo().WriteToLog()
+
+		} else {
+			remove_count := 0
+			add_count := 0
+			for _, value := range data.Data {
+				_, find := p.manager.Id2DisServer[value.UserId]
+				if !find {
+					err := p.manager.AddOuntBound(value)
+					if err != nil {
+						newError("ADDOUTBOUND ").Base(err).AtInfo().WriteToLog()
+					} else {
+						add_count += 1
+					}
+				}
+			}
+			for id, currentserver := range p.manager.Id2DisServer {
+				flag := false
+				currenttag := currentserver + fmt.Sprintf("%d", id)
+				for _, nextserver := range data.Data {
+					if id == nextserver.UserId && currenttag == nextserver.Server_raw+fmt.Sprintf("%d", nextserver.UserId) {
+						flag = true
+						break
+					} else if id == nextserver.UserId && currenttag != nextserver.Server_raw+fmt.Sprintf("%d", nextserver.UserId) {
+						p.manager.RemoveOutBound(currenttag, id)
+						err := p.manager.AddOuntBound(nextserver)
+						if err != nil {
+							newError("ADDOUTBOUND ").Base(err).AtInfo().WriteToLog()
+						} else {
+							remove_count += 1
+							add_count += 1
+						}
+						flag = true
+						break
+					}
+					if !flag {
+						p.manager.RemoveOutBound(currenttag, id)
+						remove_count += 1
+					}
+				}
+
+			}
+
+			p.manager.Id2DisServer = map[uint]string{}
+			for _, nextserver := range data.Data {
+				p.manager.Id2DisServer[nextserver.UserId] = nextserver.Server_raw
+			}
+			newErrorf("Add %d and REMOVE %d  Rules, Current Rules %d", add_count, remove_count, len(p.manager.Id2DisServer)).AtInfo().WriteToLog()
+		}
+	} else {
+		newErrorf("There is No User Rules, Need To Remove %d RULEs", len(p.manager.Id2DisServer)).AtInfo().WriteToLog()
+		if len(p.manager.Id2DisServer) > 0 {
+			remove_count := 0
+			add_count := 0
+			for id, currentserver := range p.manager.Id2DisServer {
+				currenttag := currentserver + fmt.Sprintf("%d", id)
+				p.manager.RemoveOutBound(currenttag, id)
+				remove_count += 1
+			}
+			p.manager.Id2DisServer = map[uint]string{}
+			newErrorf("Add %d and REMOVE %d  Rules, Current Rules %d", add_count, remove_count, len(p.manager.Id2DisServer)).AtInfo().WriteToLog()
+
+		}
+	}
 
 }
+
 func (p *Panel) updateThroughout() {
 	current_user := p.manager.GetUsers()
 	usertraffic := []model.UserTrafficLog{}

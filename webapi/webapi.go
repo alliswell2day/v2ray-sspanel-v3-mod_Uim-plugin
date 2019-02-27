@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/imroc/req"
 	"github.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/model"
+	"github.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/speedtest"
 	"github.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/utility"
 	"log"
 	"strconv"
@@ -30,6 +31,11 @@ type AllUsers struct {
 type Webapi struct {
 	WebToken   string
 	WebBaseURl string
+}
+
+type DisNodenfoResponse struct {
+	Ret  uint                 `json:"ret"`
+	Data []*model.DisNodeInfo `json:"data"`
 }
 
 var id2string = map[uint]string{
@@ -116,7 +122,62 @@ func (api *Webapi) GetNodeInfo(nodeid uint) (*NodeinfoResponse, error) {
 		}
 		response.Data.Server = maps
 	}
-	response.Data.NodeID =nodeid
+	response.Data.NodeID = nodeid
+	return &response, nil
+}
+
+func (api *Webapi) GetDisNodeInfo(nodeid uint) (*DisNodenfoResponse, error) {
+	var response = DisNodenfoResponse{}
+	var params map[string]interface{}
+	params = map[string]interface{}{
+		"node_id": nodeid,
+	}
+	r, err := api.GetApi("func/relay_rules", params)
+	if err != nil {
+		return &response, err
+	} else {
+		err = r.ToJSON(&response)
+		if err != nil {
+			return &response, err
+		} else if response.Ret != 1 {
+			return &response, err
+		}
+	}
+
+	if len(response.Data) > 0 {
+		for _, relayrule := range response.Data {
+			relayrule.Server_raw = strings.ToLower(relayrule.Server_raw)
+			data := strings.Split(relayrule.Server_raw, ";")
+			var count uint
+			count = 0
+			for v := range data {
+				if len(data[v]) > 1 {
+					maps[id2string[count]] = data[v]
+				}
+				count += 1
+			}
+			var extraArgues []string
+			if len(data) == 6 {
+				extraArgues = append(extraArgues, strings.Split(data[5], "|")...)
+				for item := range extraArgues {
+					data = strings.Split(extraArgues[item], "=")
+					if len(data) > 1 {
+						if len(data[1]) > 1 {
+							maps[data[0]] = data[1]
+						}
+
+					}
+				}
+			}
+
+			if maps["protocol"] == "tls" {
+				temp := maps["protocol_param"]
+				maps["protocol"] = temp
+				maps["protocol_param"] = "tls"
+			}
+			relayrule.Server = maps
+		}
+	}
 	return &response, nil
 }
 
@@ -234,7 +295,28 @@ func (api *Webapi) UpLoadUserTraffics(nodeid uint, trafficLog []model.UserTraffi
 	}
 	return true
 }
+func (api *Webapi) UploadSpeedTest(nodeid uint, speedresult []speedtest.Speedresult) bool {
+	var postresponse PostResponse
+	params := map[string]interface{}{
+		"node_id": nodeid,
+	}
 
+	data := map[string]interface{}{
+		"data": speedresult,
+	}
+	r, err := api.Post("func/speedtest", params, data)
+	if err != nil {
+		return false
+	} else {
+		err = r.ToJSON(&postresponse)
+		if err != nil {
+			return false
+		} else if postresponse.Ret != 1 {
+			log.Fatal(postresponse.Data)
+		}
+	}
+	return true
+}
 func (api *Webapi) UpLoadOnlineIps(nodeid uint, onlineIPS []model.UserOnLineIP) bool {
 	var postresponse PostResponse
 	params := map[string]interface{}{
