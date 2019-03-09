@@ -1,6 +1,8 @@
 # v2ray-sspanel-v3-mod_Uim-plugin
 
-
+## 公告
+1. 限速功能完成，是收费版本(不在提供源码，只提供二进制文件，需要联系tg @ricobb 获取授权码)(欢迎从[这里下载](https://github.com/rico93/pay-v2ray-sspanel-v3-mod_Uim-plugin)
+2. 未来还将配合胖虎适配 ssrpanel
 ## Thanks
 1. 感恩的 [ColetteContreras's repo](https://github.com/ColetteContreras/v2ray-ssrpanel-plugin). 让我一个go小白有了下手地。主要起始框架来源于这里
 2. 感恩 [eycorsican](https://github.com/eycorsican) 在v2ray-core [issue](https://github.com/v2ray/v2ray-core/issues/1514), 促成了go版本提上日程
@@ -160,19 +162,19 @@ bash install.sh
 
 安装（这里保持最新版本）
 ~~~
-bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-core/master/release/install-release.sh) --panelurl https://xxxx --panelkey xxxx --nodeid 21
+bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/master/install-release.sh) --panelurl https://xxxx --panelkey xxxx --nodeid 21
 ~~~
 
 后续升级（如果要更新到最新版本）
 ~~~
-bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-core/master/release/install-release.sh)
+bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/master/install-release.sh)
 ~~~
 
 
 如果要强制安装某个版本
 
 ~~~
-bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-core/master/release/install-release.sh) -f --version 4.12.0
+bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-sspanel-v3-mod_Uim-plugin/master/install-release.sh) -f --version 4.12.0
 ~~~
 
 
@@ -283,7 +285,8 @@ config.json Example
     "checkRate": 60,
     "SpeedTestCheckRate": 6,
     "panelUrl": "xxxx",
-    "panelKey": "xxxx"
+    "panelKey": "xxxx",
+    "downWithPanel": 1
   }
 }
 ~~~
