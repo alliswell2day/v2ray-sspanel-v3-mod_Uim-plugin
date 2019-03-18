@@ -39,14 +39,15 @@ var KcpHeadMap = map[string]*serial.TypedMessage{
 	"noop":         serial.ToTypedMessage(&noop.Config{}),
 }
 var CipherTypeMap = map[string]shadowsocks.CipherType{
-	"aes-256-cfb":            shadowsocks.CipherType_AES_256_CFB,
-	"aes-128-cfb":            shadowsocks.CipherType_AES_128_CFB,
-	"aes-128-gcm":            shadowsocks.CipherType_AES_128_GCM,
-	"aes-256-gcm":            shadowsocks.CipherType_AES_256_GCM,
-	"chacha20":               shadowsocks.CipherType_CHACHA20,
-	"chacha20-ietf":          shadowsocks.CipherType_CHACHA20_IETF,
-	"chacha20-ploy1305":      shadowsocks.CipherType_CHACHA20_POLY1305,
-	"chacha20-ietf-poly1305": shadowsocks.CipherType_CHACHA20_POLY1305,
+	"aes-256-cfb":             shadowsocks.CipherType_AES_256_CFB,
+	"aes-128-cfb":             shadowsocks.CipherType_AES_128_CFB,
+	"aes-128-gcm":             shadowsocks.CipherType_AES_128_GCM,
+	"aes-256-gcm":             shadowsocks.CipherType_AES_256_GCM,
+	"chacha20":                shadowsocks.CipherType_CHACHA20,
+	"chacha20-ietf":           shadowsocks.CipherType_CHACHA20_IETF,
+	"chacha20-ploy1305":       shadowsocks.CipherType_CHACHA20_POLY1305,
+	"chacha20-ietf-poly1305":  shadowsocks.CipherType_CHACHA20_POLY1305,
+	"xchacha20-ietf-poly1305": shadowsocks.CipherType_XCHACHA20_POLY1305,
 }
 
 type HandlerServiceClient struct {
@@ -105,24 +106,46 @@ func GetKcpStreamConfig(headkey string) *internet.StreamConfig {
 	return &streamsetting
 }
 
-func GetWebSocketStreamConfig(path string, host string) *internet.StreamConfig {
+func GetWebSocketStreamConfig(path string, host string, tm *serial.TypedMessage) *internet.StreamConfig {
 	var streamsetting internet.StreamConfig
-	streamsetting = internet.StreamConfig{
-		ProtocolName: "websocket",
-		TransportSettings: []*internet.TransportConfig{
-			&internet.TransportConfig{
-				ProtocolName: "websocket",
-				Settings: serial.ToTypedMessage(&websocket.Config{
-					Path: path,
-					Header: []*websocket.Header{
-						&websocket.Header{
-							Key:   "Hosts",
-							Value: host,
+	if tm == nil {
+		streamsetting = internet.StreamConfig{
+			ProtocolName: "websocket",
+			TransportSettings: []*internet.TransportConfig{
+				&internet.TransportConfig{
+					ProtocolName: "websocket",
+					Settings: serial.ToTypedMessage(&websocket.Config{
+						Path: path,
+						Header: []*websocket.Header{
+							&websocket.Header{
+								Key:   "Hosts",
+								Value: host,
+							},
 						},
-					},
-				}),
+					}),
+				},
 			},
-		},
+		}
+	} else {
+		streamsetting = internet.StreamConfig{
+			ProtocolName: "websocket",
+			TransportSettings: []*internet.TransportConfig{
+				&internet.TransportConfig{
+					ProtocolName: "websocket",
+					Settings: serial.ToTypedMessage(&websocket.Config{
+						Path: path,
+						Header: []*websocket.Header{
+							&websocket.Header{
+								Key:   "Hosts",
+								Value: host,
+							},
+						},
+					}),
+				},
+			},
+			SecuritySettings: []*serial.TypedMessage{tm},
+			SecurityType:     tm.Type,
+		}
 	}
 	return &streamsetting
 }
