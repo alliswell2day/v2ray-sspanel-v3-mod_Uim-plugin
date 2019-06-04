@@ -106,8 +106,8 @@ func (api *Webapi) GetNodeInfo(nodeid uint) (*NodeinfoResponse, error) {
 			extraArgues = append(extraArgues, strings.Split(data[5], "|")...)
 			for item := range extraArgues {
 				data = strings.Split(extraArgues[item], "=")
-				if len(data) > 0 {
-					if len(data[1]) > 1 {
+				if len(data) > 1 {
+					if len(data[1]) > 0 {
 						maps[data[0]] = data[1]
 					}
 
