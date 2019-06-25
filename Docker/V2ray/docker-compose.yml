@@ -2,7 +2,7 @@ version: '2'
 
 services:
  v2ray:
-    image: rico93/v2ray_v3:go
+    image: hxc1427418039/v2ray_v3:go
     restart: always
     network_mode: "host"
     environment:
