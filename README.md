@@ -1,3 +1,7 @@
+感恩原作者rico辛苦付出
+本人仅做备份和后续维护
+caddy镜像更新支持tls1.3
+
 # v2ray-sspanel-v3-mod_Uim-plugin
 
 
