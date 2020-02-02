@@ -96,7 +96,7 @@ func (api *Webapi) GetNodeInfo(nodeid uint) (*NodeinfoResponse, error) {
 		var count uint
 		count = 0
 		for v := range data {
-			if len(data[v]) > 1 {
+			if len(data[v]) > 0 {
 				maps[id2string[count]] = data[v]
 			}
 			count += 1
@@ -107,7 +107,7 @@ func (api *Webapi) GetNodeInfo(nodeid uint) (*NodeinfoResponse, error) {
 			for item := range extraArgues {
 				data = strings.Split(extraArgues[item], "=")
 				if len(data) > 1 {
-					if len(data[1]) > 1 {
+					if len(data[1]) > 0 {
 						maps[data[0]] = data[1]
 					}
 
@@ -151,7 +151,7 @@ func (api *Webapi) GetDisNodeInfo(nodeid uint) (*DisNodenfoResponse, error) {
 			var count uint
 			count = 0
 			for v := range data {
-				if len(data[v]) > 1 {
+				if len(data[v]) > 0 {
 					maps[id2string[count]] = data[v]
 				}
 				count += 1
@@ -162,7 +162,7 @@ func (api *Webapi) GetDisNodeInfo(nodeid uint) (*DisNodenfoResponse, error) {
 				for item := range extraArgues {
 					data = strings.Split(extraArgues[item], "=")
 					if len(data) > 1 {
-						if len(data[1]) > 1 {
+						if len(data[1]) > 0 {
 							maps[data[0]] = data[1]
 						}
 

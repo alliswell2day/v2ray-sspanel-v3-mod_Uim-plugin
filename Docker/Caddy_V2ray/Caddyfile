@@ -8,7 +8,7 @@
   }
   gzip
   tls {$V2RAY_EMAIL} {
-    protocols tls1.0 tls1.2
+    protocols tls1.2 tls1.3
     # remove comment if u want to use cloudflare (for DNS challenge authentication)
     # dns cloudflare
   }
