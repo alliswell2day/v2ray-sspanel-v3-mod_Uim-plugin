@@ -17,7 +17,7 @@ caddy镜像更新支持tls1.3
 
 ## 项目状态
 
-支持 [ss-panel-v3-mod_Uim](https://github.com/NimaQu/ss-panel-v3-mod_Uim) 的 webapi。 目前自己也尝试维护了一个版本, [panel](https://github.com/rico93/ss-panel-v3-mod_Uim)
+支持 [ss-panel-v3-mod_Uim](https://github.com/NimaQu/ss-panel-v3-mod_Uim) 的 webapi。 目前自己也尝试维护了一个版本
 
 目前只适配了流量记录、服务器是否在线、在线人数,在线ip上报、负载、中转，后端根据前端的设定自动调用 API 增加用户。
 
@@ -156,140 +156,6 @@ chmod +x install.sh && \
 bash install.sh
 ~~~
 
-
-#### 普通安装
-##### 安装v2ray 
-修改了官方安装脚本
-用脚本指定面板信息，请务必删除原有的config.json, 否则不会更新config.json
-
-安装（这里保持最新版本）
-~~~
-bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-core/master/release/install-release.sh) --panelurl https://xxxx --panelkey xxxx --nodeid 21
-~~~
-
-后续升级（如果要更新到最新版本）
-~~~
-bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-core/master/release/install-release.sh)
-~~~
-
-
-如果要强制安装某个版本
-
-~~~
-bash <(curl -L -s  https://raw.githubusercontent.com/rico93/v2ray-core/master/release/install-release.sh) -f --version 4.12.0
-~~~
-
-
-config.json Example 
-
-~~~
-{
-  "api": {
-    "services": [
-      "HandlerService",
-      "LoggerService",
-      "StatsService"
-    ],
-    "tag": "api"
-  },
-  "inbounds": [{
-    "listen": "127.0.0.1",
-    "port": 2333,
-    "protocol": "dokodemo-door",
-    "settings": {
-      "address": "127.0.0.1"
-    },
-    "tag": "api"
-  }
-  ],
-  "log": {
-    "access": "/var/log/v2ray/access.log",
-    "error": "/var/log/v2ray/error.log",
-    "loglevel": "info"
-  },
-  "outbounds": [{
-    "protocol": "freedom",
-    "settings": {}
-  },
-    {
-      "protocol": "blackhole",
-      "settings": {},
-      "tag": "blocked"
-    }
-  ],
-  "policy": {
-    "levels": {
-      "0": {
-        "connIdle": 300,
-        "downlinkOnly": 5,
-        "handshake": 4,
-        "statsUserDownlink": true,
-        "statsUserUplink": true,
-        "uplinkOnly": 2
-      }
-    },
-    "system": {
-      "statsInboundDownlink": false,
-      "statsInboundUplink": false
-    }
-  },
-  "reverse": {},
-  "routing": {
-    "settings": {
-      "rules": [{
-        "ip": [
-          "0.0.0.0/8",
-          "10.0.0.0/8",
-          "100.64.0.0/10",
-          "127.0.0.0/8",
-          "169.254.0.0/16",
-          "172.16.0.0/12",
-          "192.0.0.0/24",
-          "192.0.2.0/24",
-          "192.168.0.0/16",
-          "198.18.0.0/15",
-          "198.51.100.0/24",
-          "203.0.113.0/24",
-          "::1/128",
-          "fc00::/7",
-          "fe80::/10"
-        ],
-        "outboundTag": "blocked",
-        "protocol": [
-          "bittorrent"
-        ],
-        "type": "field"
-      },
-        {
-          "inboundTag": [
-            "api"
-          ],
-          "outboundTag": "api",
-          "type": "field"
-        },
-        {
-          "domain": [
-            "regexp:(api|ps|sv|offnavi|newvector|ulog\\.imap|newloc)(\\.map|)\\.(baidu|n\\.shifen)\\.com",
-            "regexp:(.+\\.|^)(360|so)\\.(cn|com)",
-            "regexp:(.?)(xunlei|sandai|Thunder|XLLiveUD)(.)"
-          ],
-          "outboundTag": "blocked",
-          "type": "field"
-        }
-      ]
-    },
-    "strategy": "rules"
-  },
-  "stats": {},
-  "sspanel": {
-    "nodeId": 20,
-    "checkRate": 60,
-    "SpeedTestCheckRate": 6,
-    "panelUrl": "xxxx",
-    "panelKey": "xxxx"
-  }
-}
-~~~
 ##### 安装caddy
 
 一键安装 caddy 和cf ddns tls插件
